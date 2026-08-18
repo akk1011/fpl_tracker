@@ -59,7 +59,16 @@ def fetch_csv(season: str, relative_path: str) -> list[dict] | None:
         return None
     resp.raise_for_status()
 
-    text = resp.content.decode("utf-8-sig")  # some files ship a BOM
+    # Confirmed at full scale this session: not every file is UTF-8 — 2016-17's
+    # merged_gw.csv (accented player names, e.g. Özil) fails utf-8-sig decode.
+    # Fall back to cp1252 (Windows-1252), which covers the accented-Latin
+    # characters actually seen in these files and never raises on its own
+    # (every byte 0-255 is valid cp1252), so this is a safe last resort.
+    try:
+        text = resp.content.decode("utf-8-sig")  # some files ship a BOM
+    except UnicodeDecodeError:
+        log.warning("%s/%s: not UTF-8, retrying as cp1252", season, relative_path)
+        text = resp.content.decode("cp1252")
     reader = csv.DictReader(io.StringIO(text))
     if reader.fieldnames:
         reader.fieldnames = [name.strip() for name in reader.fieldnames]

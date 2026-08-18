@@ -42,6 +42,15 @@ def test_fetch_csv_raises_on_non_404_error():
             pass
 
 
+def test_fetch_csv_falls_back_to_cp1252_on_non_utf8_bytes():
+    """Confirmed at full scale: 2016-17's merged_gw.csv has accented names
+    (e.g. Özil) encoded outside UTF-8 — must not crash the whole run."""
+    csv_bytes = "name,club\n\xd6zil,Arsenal\n".encode("cp1252")
+    with patch.object(vaastav_client._session, "get", return_value=FakeResponse(200, csv_bytes)):
+        rows = vaastav_client.fetch_csv("2016-17", "gws/merged_gw.csv")
+    assert rows == [{"name": "Özil", "club": "Arsenal"}]
+
+
 def test_fetch_understat_team_file_uses_correct_path():
     with patch.object(vaastav_client, "fetch_csv") as mock_fetch:
         vaastav_client.fetch_understat_team_file("2020-21", "Manchester_United")
