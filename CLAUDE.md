@@ -14,6 +14,14 @@ Public, hosted FPL analytics tool, open to any FPL manager. Full context and pha
 - **The official FPL API is CORS-blocked.** Always call it server-side (from the backend), never from frontend code.
 - **Repo stays public** — this is what makes GitHub Actions minutes free.
 
+## Engineering standards — optimize for correctness, not speed
+- **Never assume a schema — inspect it.** The official FPL API has no real documentation. Before writing code against any endpoint, actually fetch a live sample response and read the real field names/shapes. Same for third-party repos (FPL-Core-Insights, vaastav's archive, OpenFPL) — check the actual files/columns, don't infer from the repo name or README summary alone.
+- **Never assume a library's API — verify it.** Check the installed package's actual docs or source before using a method signature from memory, especially for anything version-sensitive (PuLP/OR-Tools, FastAPI, Next.js).
+- **A phase isn't done until it has passing tests, not until it runs once.** Unit tests for pure logic (scoring math, DEFCON thresholds, optimizer constraints). For the projections engine, backtest against a past season/gameweek with a known outcome and report actual error (MAE), not "looks reasonable." For the optimizer, assert constraint satisfaction programmatically (budget, squad composition, max-3-per-club) rather than eyeballing output. For the simulator, assert simulated probabilities sum correctly and sanity-check against an obvious case.
+- **Set up CI early.** A GitHub Actions workflow that runs the test suite on every push (free on this public repo) — regressions get caught automatically, not by manual re-review.
+- **Use plan mode for non-trivial phases** (the synergy model, optimizer, simulator) — review the proposed approach before code gets written, not after.
+- **No silent shortcuts.** Don't stub or mock critical logic and present it as done. If something is genuinely uncertain, say so and ask — don't guess quietly and move on.
+
 ## Build order
 1. Data foundation — ETL + Postgres schema ← **current phase**
 2. Core dashboards

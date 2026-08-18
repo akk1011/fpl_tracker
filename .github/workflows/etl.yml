@@ -1,0 +1,26 @@
+name: Nightly ETL
+
+on:
+  schedule:
+    # 06:00 UTC daily — well after FPL's own overnight data settles, before
+    # most of Europe wakes up. Free on this public repo (unlimited Actions
+    # minutes for public repos).
+    - cron: "0 6 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  etl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - run: pip install -r requirements.txt
+
+      - name: Run ETL pipeline
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python -m etl.pipeline
