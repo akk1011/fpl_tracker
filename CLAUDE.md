@@ -13,6 +13,7 @@ Public, hosted FPL analytics tool, open to any FPL manager. Full context and pha
 - **Heavy compute never runs live per-request.** Monte Carlo simulations and full projection runs happen in the nightly GitHub Actions batch job only, and get cached in Postgres. A free serverless function cannot finish a 10,000-run simulation inside its execution limit — don't try.
 - **The official FPL API is CORS-blocked.** Always call it server-side (from the backend), never from frontend code.
 - **Repo stays public** — this is what makes GitHub Actions minutes free.
+- **Every table that grows on a recurring cadence needs a retention policy designed in at creation time, not bolted on later.** Found the hard way: `raw_snapshots` shipped with no limit and would have consumed ~475MB/year — most of Neon's entire 0.5GB free-tier cap — from one table alone, from a single nightly insert with no pruning. A one-time historical backfill isn't this risk (it lands once and stops); anything that inserts on a schedule forever is. The next concrete case: **Phase 8's mini-league simulator caches Monte Carlo results** — design its retention (e.g. keep latest per league, or last N runs) as part of that table's schema, not as a follow-up fix.
 
 ## Engineering standards — optimize for correctness, not speed
 - **Never assume a schema — inspect it.** The official FPL API has no real documentation. Before writing code against any endpoint, actually fetch a live sample response and read the real field names/shapes. Same for third-party repos (FPL-Core-Insights, vaastav's archive, OpenFPL) — check the actual files/columns, don't infer from the repo name or README summary alone.
@@ -23,7 +24,7 @@ Public, hosted FPL analytics tool, open to any FPL manager. Full context and pha
 - **No silent shortcuts.** Don't stub or mock critical logic and present it as done. If something is genuinely uncertain, say so and ask — don't guess quietly and move on.
 
 ## Build order
-1. Data foundation — ETL + Postgres schema. **Historical depth: full archive, 2016/17 through the current season (~10 seasons)** via vaastav's repo, plus daily live ingestion of the current season via the official API. DEFCON only has real recorded data from 2025/26 onward — any DEFCON figures computed for earlier seasons are a derived backfill from raw defensive-action stats and must be labeled as such, never presented as recorded scoring. ← **current phase**
+1. Data foundation — ETL + Postgres schema. **Historical depth: full archive, 2016/17 through the current season (~10 seasons)** via vaastav's repo, plus daily live ingestion of the current season via the official API. DEFCON only has real recorded data from 2025/26 onward — any DEFCON figures computed for earlier seasons are a derived backfill from raw defensive-action stats and must be labeled as such, never presented as recorded scoring. Includes Understat xG/xA — verified directly against live files (not the README's implied "merged" coverage): team-level is broad (2019-20–2024-25), but player-level linkage to FPL identity only works for 2021-22 and 2022-23 (the only seasons vaastav also ships an `id_dict.csv` for); see FPL_Tracker_Spec.md §2 for the full detail. ← **current phase**
 2. Core dashboards
 3. Projections engine (xP, DEFCON/goals/assists)
 4. Transfer decision support
