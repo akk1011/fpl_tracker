@@ -33,6 +33,18 @@ ELEMENT_SUMMARY_MAX_WORKERS = int(os.environ.get("ELEMENT_SUMMARY_MAX_WORKERS", 
 REQUEST_TIMEOUT_SECONDS = 15
 REQUEST_MAX_RETRIES = 3
 
+# The live pipeline (etl/pipeline.py) owns the current season exclusively —
+# historical backfill (etl/historical/pipeline.py) only ever targets seasons
+# strictly before this one, so vaastav's copy of the in-progress season never
+# duplicates/conflicts with the authoritative live data. Update once a year
+# at rollover (see CLAUDE.md's existing "check every July" note).
+CURRENT_LIVE_SEASON = "2026-27"
+
+HISTORICAL_SEASONS = [
+    "2016-17", "2017-18", "2018-19", "2019-20", "2020-21",
+    "2021-22", "2022-23", "2023-24", "2024-25", "2025-26",
+]
+
 
 def require_database_url() -> str:
     if not DATABASE_URL:

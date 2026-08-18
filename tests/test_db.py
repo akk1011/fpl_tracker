@@ -87,3 +87,25 @@ def test_upsert_uses_composite_conflict_target(mock_execute_values):
     _, query, _ = mock_execute_values.call_args[0]
     assert "ON CONFLICT (player_id, fixture_id) DO UPDATE SET" in query
     assert "total_points = EXCLUDED.total_points" in query
+
+
+def test_insert_raw_snapshot_inserts_then_prunes_same_source():
+    conn = FakeConn()
+
+    db.insert_raw_snapshot(conn, "bootstrap_static", {"some": "payload"})
+
+    assert conn.committed is True
+    assert len(conn.cursor_obj.executed) == 2
+
+    insert_sql, insert_params = conn.cursor_obj.executed[0]
+    assert "INSERT INTO raw_snapshots" in insert_sql
+    assert insert_params[0] == "bootstrap_static"
+
+    prune_sql, prune_params = conn.cursor_obj.executed[1]
+    assert "DELETE FROM raw_snapshots" in prune_sql
+    assert "ORDER BY fetched_at DESC" in prune_sql
+    assert "LIMIT %s" in prune_sql
+    # both source references + the retention count, scoped to this source only
+    assert prune_params == (
+        "bootstrap_static", "bootstrap_static", db.RAW_SNAPSHOTS_RETENTION_PER_SOURCE,
+    )

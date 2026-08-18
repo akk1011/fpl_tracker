@@ -15,6 +15,9 @@ import psycopg2.extras
 from etl.config import require_database_url
 
 SCHEMA_PATH = Path(__file__).resolve().parent.parent / "db" / "schema.sql"
+UNDERSTAT_TEAM_SEED_PATH = (
+    Path(__file__).resolve().parent.parent / "db" / "seed_understat_team_map.sql"
+)
 
 
 @contextmanager
@@ -31,6 +34,20 @@ def apply_schema(conn) -> None:
     with conn.cursor() as cur:
         cur.execute(sql)
     conn.commit()
+
+
+def apply_understat_team_seed(conn) -> None:
+    """Idempotent (ON CONFLICT DO UPDATE) — safe to call every historical run."""
+    sql = UNDERSTAT_TEAM_SEED_PATH.read_text()
+    with conn.cursor() as cur:
+        cur.execute(sql)
+    conn.commit()
+
+
+def get_understat_team_name_map(conn) -> dict[str, int]:
+    with conn.cursor() as cur:
+        cur.execute("SELECT understat_team_name, team_code FROM understat_team_name_map")
+        return dict(cur.fetchall())
 
 
 def upsert(
@@ -66,11 +83,37 @@ def upsert(
     return len(rows)
 
 
+RAW_SNAPSHOTS_RETENTION_PER_SOURCE = 14
+
+
 def insert_raw_snapshot(conn, source: str, payload) -> None:
+    """Insert one snapshot, then prune old ones for that source.
+
+    Without this, this table grows unbounded: a bootstrap-static snapshot
+    alone is ~1.3MB, so at one insert/night with no pruning it would hit
+    ~475MB/year — most of Neon's entire 0.5GB free-tier cap, from this one
+    table alone. Keeping only the most recent N per source is plenty for
+    the table's actual purpose (debugging a recent bad run) — reprocessing
+    from scratch should re-fetch live from the free official API instead
+    of relying on old snapshots.
+    """
     with conn.cursor() as cur:
         cur.execute(
             "INSERT INTO raw_snapshots (source, payload) VALUES (%s, %s)",
             (source, psycopg2.extras.Json(payload)),
+        )
+        cur.execute(
+            """
+            DELETE FROM raw_snapshots
+            WHERE source = %s
+              AND id NOT IN (
+                  SELECT id FROM raw_snapshots
+                  WHERE source = %s
+                  ORDER BY fetched_at DESC
+                  LIMIT %s
+              )
+            """,
+            (source, source, RAW_SNAPSHOTS_RETENTION_PER_SOURCE),
         )
     conn.commit()
 

@@ -1,0 +1,35 @@
+name: Historical Backfill
+
+# Manual only — historical data doesn't change once ingested, so unlike the
+# live ETL there's nothing to re-run nightly for. Run one season at a time
+# (the default and current hard-gated approach — see the approved plan) or
+# "all" once the storage measurement checkpoint has been reviewed.
+on:
+  workflow_dispatch:
+    inputs:
+      season:
+        description: 'Season to backfill (e.g. 2025-26), or "all" for every historical season'
+        required: true
+        default: "2025-26"
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - run: pip install -r requirements.txt
+
+      - name: Run historical backfill
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ "${{ github.event.inputs.season }}" = "all" ]; then
+            python -m etl.historical.pipeline --all
+          else
+            python -m etl.historical.pipeline --season "${{ github.event.inputs.season }}"
+          fi

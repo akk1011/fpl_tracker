@@ -23,7 +23,7 @@ Public, hosted FPL analytics tool, open to any FPL manager. Full context and pha
 - **No silent shortcuts.** Don't stub or mock critical logic and present it as done. If something is genuinely uncertain, say so and ask — don't guess quietly and move on.
 
 ## Build order
-1. Data foundation — ETL + Postgres schema ← **current phase**
+1. Data foundation — ETL + Postgres schema. **Historical depth: full archive, 2016/17 through the current season (~10 seasons)** via vaastav's repo, plus daily live ingestion of the current season via the official API. DEFCON only has real recorded data from 2025/26 onward — any DEFCON figures computed for earlier seasons are a derived backfill from raw defensive-action stats and must be labeled as such, never presented as recorded scoring. ← **current phase**
 2. Core dashboards
 3. Projections engine (xP, DEFCON/goals/assists)
 4. Transfer decision support
