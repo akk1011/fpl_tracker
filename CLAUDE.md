@@ -24,8 +24,8 @@ Public, hosted FPL analytics tool, open to any FPL manager. Full context and pha
 - **No silent shortcuts.** Don't stub or mock critical logic and present it as done. If something is genuinely uncertain, say so and ask — don't guess quietly and move on.
 
 ## Build order
-1. Data foundation — ETL + Postgres schema. **Historical depth: full archive, 2016/17 through the current season (~10 seasons)** via vaastav's repo, plus daily live ingestion of the current season via the official API. DEFCON only has real recorded data from 2025/26 onward — any DEFCON figures computed for earlier seasons are a derived backfill from raw defensive-action stats and must be labeled as such, never presented as recorded scoring. Includes Understat xG/xA — verified directly against live files (not the README's implied "merged" coverage): team-level is broad (2019-20–2024-25), but player-level linkage to FPL identity only works for 2021-22 and 2022-23 (the only seasons vaastav also ships an `id_dict.csv` for); see FPL_Tracker_Spec.md §2 for the full detail. ← **current phase**
-2. Core dashboards
+1. ✅ Data foundation — ETL + Postgres schema. Live pipeline (official API → Postgres, nightly cron) and full historical archive (2016/17–2025/26 via vaastav's repo, plus Understat xG/xA — team-level 2019-20–2024-25, player-level linked to FPL identity only for 2021-22/2022-23, see FPL_Tracker_Spec.md §2) both built, tested, and verified against the real Neon database. DEFCON raw ingredients land from 2025/26 onward only (`defcon_recorded` flag distinguishes real recorded scoring from earlier seasons with no DEFCON data to derive from) — computing/backfilling actual DEFCON points is Phase 3's job, not this one's.
+2. Core dashboards ← **current phase**
 3. Projections engine (xP, DEFCON/goals/assists)
 4. Transfer decision support
 5. Budget & transfer optimizer
