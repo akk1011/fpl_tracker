@@ -89,7 +89,23 @@ def compute_points_breakdown(row: dict, position: Position) -> PointsBreakdown:
     breakdown then landed at 175 total vs. their actual recorded
     total_points of 239. For a season-level breakdown, compute this
     function once per real match row and sum with `sum_breakdowns()` below.
+
+    Enforced, not just documented: raises if `row` doesn't look like a
+    per-match row. `gameweek_id` is present on every player_gameweek_stats
+    row and absent from the season-aggregate `players` row — a hard,
+    deterministic discriminator (not a heuristic like "minutes look too
+    high"), so this catches the exact bug above at *any* call site, not
+    just the one endpoint that happened to have a test for it.
     """
+    if "gameweek_id" not in row:
+        raise ValueError(
+            "compute_points_breakdown() received a row with no 'gameweek_id' "
+            "— this looks like a season-aggregate row, not a single match. "
+            "See this function's docstring for why that silently gives a "
+            "wrong answer. Query player_gameweek_stats and sum with "
+            "sum_breakdowns() instead."
+        )
+
     minutes = row.get("minutes") or 0
     goals_scored = row.get("goals_scored") or 0
     assists = row.get("assists") or 0

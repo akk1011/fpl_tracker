@@ -10,6 +10,12 @@ from app.scoring import compute_points_breakdown, sum_breakdowns
 
 def _row(**overrides) -> dict:
     base = {
+        # gameweek_id marks this as a per-match row — required by
+        # compute_points_breakdown's own guard (see test_scoring.py's
+        # dedicated tests for that guard below). Present on every real
+        # player_gameweek_stats row, absent from the season-aggregate
+        # `players` row.
+        "gameweek_id": 1,
         "minutes": 0, "goals_scored": 0, "assists": 0, "clean_sheets": 0,
         "goals_conceded": 0, "own_goals": 0, "penalties_saved": 0,
         "penalties_missed": 0, "yellow_cards": 0, "red_cards": 0,
@@ -175,17 +181,34 @@ def test_sum_breakdowns_empty_list_is_all_zero():
     assert all(v == 0 for v in summed.values())
 
 
-def test_season_aggregate_misuse_gives_wrong_appearance_points():
-    """Documents the exact bug this module used to have: passing a
-    season-aggregate row (e.g. total season minutes, not one match's
-    minutes) through compute_points_breakdown silently gives a wrong
-    answer — 2953 minutes resolves to a single 0/1/2 bucket, not ~2 points
-    per match actually played. This test exists so nobody re-introduces
-    the "season aggregates work the same" assumption without noticing."""
-    fake_season_aggregate_row = _row(minutes=2953, goals_scored=27, assists=8)
-    breakdown = compute_points_breakdown(fake_season_aggregate_row, "FWD")
-    # A real player with these season totals actually scored 239 points
-    # (Erling Haaland, 2026-27 preseason carryover, verified live this
-    # session) — this function, misused this way, comes nowhere close.
-    assert breakdown["total"] != 239
-    assert breakdown["appearance"] == 2  # the bug: always capped at 2, never scales with matches played
+def test_rejects_season_aggregate_row_missing_gameweek_id():
+    """This is the fix for the real bug this module used to have: passing
+    a season-aggregate row (e.g. total season minutes, not one match's)
+    through compute_points_breakdown used to silently give a wrong answer
+    — for a real player with 2953 season minutes and 239 actual recorded
+    points, the misapplied function landed at 175. Now it raises instead
+    of silently returning a wrong number, and does so generically (missing
+    'gameweek_id'), not just for this one shape of mistake.
+
+    Built from a real season-aggregate-shaped dict (the actual field names
+    a `players` row has), not just an artificially incomplete `_row()`, so
+    this exercises the real footgun, not a strawman."""
+    fake_players_row = {
+        "minutes": 2953, "goals_scored": 27, "assists": 8, "clean_sheets": 13,
+        "goals_conceded": 35, "own_goals": 0, "penalties_saved": 0,
+        "penalties_missed": 0, "yellow_cards": 1, "red_cards": 0, "saves": 0,
+        "bonus": 43, "defensive_contribution": 104, "total_points": 239,
+        # no gameweek_id — players rows don't have one
+    }
+    try:
+        compute_points_breakdown(fake_players_row, "FWD")
+        assert False, "expected a ValueError for a row with no gameweek_id"
+    except ValueError as e:
+        assert "gameweek_id" in str(e)
+
+
+def test_accepts_real_gameweek_shaped_row():
+    """The positive case: a row with gameweek_id present is accepted normally."""
+    row = _row(gameweek_id=1, minutes=90, goals_scored=1)
+    breakdown = compute_points_breakdown(row, "FWD")
+    assert breakdown["goals"] == 4
