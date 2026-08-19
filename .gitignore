@@ -7,19 +7,30 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+#
+# Anchored to the repo root (leading /) rather than the unanchored form the
+# standard Python .gitignore template ships with. Found the hard way: the
+# unanchored `lib/` here silently swallowed the entire frontend/lib/
+# directory (including frontend/lib/api.ts) from every commit since Phase 2
+# started — a bare pattern with no leading slash matches a directory of
+# that name at ANY depth, not just this Python project's own top-level
+# build artifacts, which is all this block is actually meant to catch in a
+# monorepo that also has non-Python subprojects (frontend/, backend/).
+# Anchoring every generically-named entry in this block for the same
+# reason, not just the one that already broke.
 .Python
-build/
+/build/
 develop-eggs/
-dist/
-downloads/
+/dist/
+/downloads/
 eggs/
 .eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
+/lib/
+/lib64/
+/parts/
+/sdist/
+/var/
+/wheels/
 share/python-wheels/
 *.egg-info/
 .installed.cfg
@@ -42,7 +53,7 @@ htmlcov/
 .nox/
 .coverage
 .coverage.*
-.cache
+/.cache
 nosetests.xml
 coverage.xml
 *.cover
@@ -62,7 +73,7 @@ db.sqlite3
 db.sqlite3-journal
 
 # Flask stuff:
-instance/
+/instance/
 .webassets-cache
 
 # Scrapy stuff:
@@ -73,7 +84,7 @@ docs/_build/
 
 # PyBuilder
 .pybuilder/
-target/
+/target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
