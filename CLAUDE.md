@@ -8,6 +8,14 @@ Public, hosted FPL analytics tool, open to any FPL manager. Full context and pha
 - Backend: Python serverless functions on Vercel
 - Frontend: Next.js + Tailwind, deployed on Vercel
 
+## Deployment
+- **Backend**: https://backend-gamma-sepia-53.vercel.app
+- **Frontend**: https://frontend-mu-coral-56.vercel.app
+- **Gotchas** (took several real rounds to get right — save future phases the rediscovery):
+  - Use a Vercel project's clean production domain (Domains tab) for inter-service URLs (e.g. the frontend calling the backend) — never the per-deployment hashed URL. Vercel Authentication blocks the hashed URL by default, which looks like the backend is down when it's actually an auth wall.
+  - Env var values must include the scheme — `https://backend-...vercel.app`, not just the bare host.
+  - Changing an env var and saving does **not** update the live site — it only takes effect on the *next* deployment. Trigger a fresh deploy after any env var change.
+
 ## Hard constraints — do not violate these
 - **$0/month budget target.** No paid services, tiers, or upgrades without explicit approval first.
 - **Heavy compute never runs live per-request.** Monte Carlo simulations and full projection runs happen in the nightly GitHub Actions batch job only, and get cached in Postgres. A free serverless function cannot finish a 10,000-run simulation inside its execution limit — don't try.
@@ -25,8 +33,8 @@ Public, hosted FPL analytics tool, open to any FPL manager. Full context and pha
 
 ## Build order
 1. ✅ Data foundation — ETL + Postgres schema. Live pipeline (official API → Postgres, nightly cron) and full historical archive (2016/17–2025/26 via vaastav's repo, plus Understat xG/xA — team-level 2019-20–2024-25, player-level linked to FPL identity only for 2021-22/2022-23, see FPL_Tracker_Spec.md §2) both built, tested, and verified against the real Neon database. DEFCON raw ingredients land from 2025/26 onward only (`defcon_recorded` flag distinguishes real recorded scoring from earlier seasons with no DEFCON data to derive from) — computing/backfilling actual DEFCON points is Phase 3's job, not this one's.
-2. Core dashboards ← **current phase**
-3. Projections engine (xP, DEFCON/goals/assists)
+2. ✅ Core dashboards — player/team pages (underlying metrics mapped to real FPL scoring, incl. DEFCON), FastAPI backend + Next.js frontend, deployed as two separate Vercel projects (see Deployment above) and verified against the real live URLs.
+3. Projections engine (xP, DEFCON/goals/assists) ← **current phase**
 4. Transfer decision support
 5. Budget & transfer optimizer
 6. Synergy / injury-impact analysis
